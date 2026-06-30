@@ -1,5 +1,6 @@
 import Parse from 'parse';
 
+// Comments contain a body, author, and a pointer to the post they belong
 export const fetchCommentsByPost = (post) => {
   const query = new Parse.Query('Comment');
   query.equalTo('post', post);

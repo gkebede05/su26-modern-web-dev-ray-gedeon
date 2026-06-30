@@ -6,6 +6,7 @@ import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
 
 function App() {
   return (
+    // Uses React routing for best performance
     <Router>
       <nav>
         <Link to="/">Home</Link>

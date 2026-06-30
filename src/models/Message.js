@@ -1,5 +1,6 @@
 import Parse from 'parse';
 
+// Messages contain a name, email, and message, and are the only independant class
 export const fetchAllMessages = () => {
   const query = new Parse.Query('Message');
   query.ascending('createdAt');

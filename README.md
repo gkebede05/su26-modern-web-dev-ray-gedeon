@@ -1,7 +1,5 @@
 ## Summer 2026 Modern Web Dev
 
-Feature 4
-
 By Ray Yang and Gedeon Kebede
 
 ---------------------------------------

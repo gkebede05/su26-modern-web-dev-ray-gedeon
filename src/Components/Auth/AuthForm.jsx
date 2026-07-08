@@ -1,6 +1,7 @@
 const AuthForm = ({ user, onChange, onSubmit, isRegister }) => {
   return (
     <form onSubmit={onSubmit}>
+      {/* Student B: first and last name only show for the register page. */}
       {isRegister && (
         <div>
           <div>
@@ -49,15 +50,13 @@ const AuthForm = ({ user, onChange, onSubmit, isRegister }) => {
           value={user.password}
           onChange={onChange}
           name="password"
-          placeholder="Password"
+          placeholder="password"
           required
         />
       </div>
       <br />
       <div>
-        <button type="submit" onSubmit={onSubmit}>
-          Submit
-        </button>
+        <button type="submit">{isRegister ? "Register" : "Login"}</button>
       </div>
     </form>
   );

@@ -1,9 +1,11 @@
-import { useState, useEffect } from "react";
-import { createUser } from "./AuthService.jsx";
-import { Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { checkUser, createUser } from "./AuthService.jsx";
 import AuthForm from "./AuthForm.jsx";
 
 const AuthRegister = () => {
+  const navigate = useNavigate();
+
   const [newUser, setNewUser] = useState({
     firstName: "",
     lastName: "",
@@ -11,33 +13,39 @@ const AuthRegister = () => {
     password: "",
   });
 
-  // flag is the state to for add/remove updates
+  // Student B: flag variable tells React when the register form has been submitted.
   const [add, setAdd] = useState(false);
 
+  // Student B: already authenticated users should not manually return to register.
+  useEffect(() => {
+    if (checkUser()) {
+      navigate("/authenticated", { replace: true });
+    }
+  }, [navigate]);
+
+  // Student B: register is asynchronous, so it lives inside useEffect.
   useEffect(() => {
     if (newUser && add) {
       createUser(newUser).then((userCreated) => {
         if (userCreated) {
-          alert(
-            `${userCreated.get("firstname")}, you successfully registered.`
-          );
+          alert(`${userCreated.get("firstName")}, you successfully registered.`);
+          navigate("/authenticated", { replace: true });
         }
         setAdd(false);
       });
     }
-  }, [newUser, add]);
+  }, [newUser, add, navigate]);
 
   const onChangeHandler = (e) => {
     e.preventDefault();
-    console.log(e.target);
     const { name, value: newValue } = e.target;
-    console.log(newValue);
-    setNewUser({ ...newUser, [name]: newValue });
+
+    // Student B: keep the previous form data and update only the changed input.
+    setNewUser((previousUser) => ({ ...previousUser, [name]: newValue }));
   };
 
   const onSubmitHandler = (e) => {
     e.preventDefault();
-    console.log(e.target);
     setAdd(true);
   };
 
@@ -51,8 +59,8 @@ const AuthRegister = () => {
         isRegister={true}
       />
       <br />
-      <Link to="/">
-        <button>Home</button>
+      <Link to="/auth/login">
+        <button type="button">Already registered? Login</button>
       </Link>
     </div>
   );

@@ -1,50 +1,65 @@
-import { useState, useEffect } from "react";
-import { loginUser } from "./AuthService.jsx";
-import { Navigate, useNavigate, Link } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link, useNavigate } from "react-router-dom";
+import { checkUser, loginUser } from "./AuthService.jsx";
 import AuthForm from "./AuthForm.jsx";
-// import ProtectedRoute from "../../Service/ProtectedRoute.js";
 
 const AuthLogin = () => {
   const navigate = useNavigate();
 
-  const [user, setUser] = useState({
+  const [currentUser, setCurrentUser] = useState({
     email: "",
     password: "",
   });
 
+  // Student B: flag variable tells React when the login form has been submitted.
+  const [login, setLogin] = useState(false);
+
+  // Student B: already authenticated users should not manually return to login.
+  useEffect(() => {
+    if (checkUser()) {
+      navigate("/authenticated", { replace: true });
+    }
+  }, [navigate]);
+
+  // Student B: login is asynchronous, so it lives inside useEffect.
+  useEffect(() => {
+    if (currentUser && login) {
+      loginUser(currentUser).then((loggedInUser) => {
+        if (loggedInUser) {
+          const firstName = loggedInUser.get("firstName");
+          alert(`Welcome, ${firstName}!`);
+          navigate("/authenticated", { replace: true });
+        }
+        setLogin(false);
+      });
+    }
+  }, [currentUser, login, navigate]);
+
   const onChangeHandler = (e) => {
     e.preventDefault();
-    console.log(e.target);
     const { name, value: newValue } = e.target;
-    console.log(newValue);
-    setUser({ ...user, [name]: newValue });
+
+    // Student B: keep the previous form data and update only the changed input.
+    setCurrentUser((previousUser) => ({ ...previousUser, [name]: newValue }));
   };
 
   const onSubmitHandler = (e) => {
     e.preventDefault();
-    console.log(e.target);
-
-    loginUser(user.email, user.password).then((loggedInUser) => {
-      console.log("loggedInUser:", loggedInUser);
-      if (loggedInUser) {
-        alert(`Welcome, ${loggedInUser.get("firstname")}!`);
-        navigate("/about");
-      }
-    });
+    setLogin(true);
   };
 
   return (
     <div>
       <h1>Login</h1>
       <AuthForm
-        user={user}
+        user={currentUser}
         onChange={onChangeHandler}
         onSubmit={onSubmitHandler}
         isRegister={false}
       />
       <br />
-      <Link to="/">
-        <button>Home</button>
+      <Link to="/auth/register">
+        <button type="button">Need an account? Register</button>
       </Link>
     </div>
   );

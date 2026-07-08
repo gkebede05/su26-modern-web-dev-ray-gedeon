@@ -1,23 +1,40 @@
-import Home from './pages/Home';
-import About from './pages/About';
-import Contact from './pages/Contact';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-
+import Home from './Components/Main/Home';
+import About from './Components/Main/About';
+import Contact from './Components/Main/Contact';
+import AuthModule from './Components/Auth/Auth.jsx';
+import AuthLogin from './Components/Auth/AuthLogin.jsx';
+import AuthRegister from './Components/Auth/AuthRegister.jsx';
+import ProtectedRoute from './Service/ProtectedRoute.jsx';
+import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
 
 function App() {
   return (
     // Uses React routing for best performance
     <Router>
       <nav>
-        <Link to="/">Home</Link>
-        <Link to="/about">About</Link>
-        <Link to="/contact">Contact</Link>
+        <Link to="/authenticated">Home</Link>
+        <Link to="/authenticated/about">About</Link>
+        <Link to="/authenticated/contact">Contact</Link>
       </nav>
       <main>
         <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
+          <Route path="/" element={<AuthModule />} />
+          <Route path="/register" element={<AuthRegister />} />
+          <Route path="/login" element={<AuthLogin />} />
+          
+          <Route
+            path="/authenticated"
+            element={<ProtectedRoute element={Home} />}
+          />
+          <Route
+            path="/authenticated/about"
+            element={<ProtectedRoute element={About} />}
+          />
+          <Route
+            path="/authenticated/contact"
+            element={<ProtectedRoute element={Contact} />}
+          />
+          <Route path="*" element={<Navigate to="/auth" replace />} />
         </Routes>
       </main>
     </Router>

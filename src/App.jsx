@@ -1,48 +1,93 @@
-import Home from './Components/Main/Home';
-import About from './Components/Main/About';
-import Contact from './Components/Main/Contact';
-import AuthModule from './Components/Auth/Auth.jsx';
-import AuthLogin from './Components/Auth/AuthLogin.jsx';
-import AuthLogout from './Components/Auth/AuthLogout.jsx';
-import AuthRegister from './Components/Auth/AuthRegister.jsx';
-import ProtectedRoute from './Service/ProtectedRoute.jsx';
-import { BrowserRouter as Router, Routes, Route, Navigate, Link } from 'react-router-dom';
+import React, { useEffect, useState } from "react";
+import Parse from "./main.jsx";
+import ShelterCard from "./Components/ShelterCard";
+import "./App.css";
 
-function App() {
+export default function App() {
+  const [zipcode, setZipcode] = useState("");
+  const [shelters, setShelters] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    async function fetchShelters() {
+      try {
+        const Shelter = Parse.Object.extend("Shelter");
+        const query = new Parse.Query(Shelter);
+        const results = await query.find();
+
+        const mapped = results.map((obj) => ({
+          id: obj.id,
+          name: obj.get("name"),
+          status: obj.get("status"),
+          distanceMiles: obj.get("distanceMiles"),
+          petsAllowed: obj.get("petsAllowed"),
+          accessible: obj.get("accessible"),
+          medicalOnSite: obj.get("medicalOnSite"),
+          updatedAt: obj.updatedAt
+            ? new Date(obj.updatedAt).toLocaleString(undefined, {
+                month: "short",
+                day: "numeric",
+                hour: "numeric",
+                minute: "2-digit",
+              })
+            : null,
+        }));
+
+        setShelters(mapped);
+      } catch (err) {
+        setError("Couldn't load shelter data. Check your Back4App keys and connection.");
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    }
+
+    fetchShelters();
+  }, []);
+
+  function handleSubmit(e) {
+    e.preventDefault();
+    // Zipcode lookup isn't wired up yet - this is a placeholder for now.
+  }
+
   return (
-    // Uses React routing for best performance
-    <Router>
-      <nav>
-        <Link to="/authenticated">Home</Link>
-        <Link to="/authenticated/about">About</Link>
-        <Link to="/authenticated/contact">Contact</Link>
-        <Link to="/logout">Logout</Link>
-      </nav>
-      <main>
-        <Routes>
-          <Route path="/" element={<Navigate to="/auth" replace />} />
-          <Route path="/auth" element={<AuthModule />} />
-          <Route path="/auth/register" element={<AuthRegister />} />
-          <Route path="/auth/login" element={<AuthLogin />} />
-          <Route path="/logout" element={<AuthLogout />} />
+    <div className="page">
+      <header className="banner">
+        <h1>Shelter Finder</h1>
+      </header>
 
-          <Route
-            path="/authenticated"
-            element={<ProtectedRoute element={Home} />}
-          />
-          <Route
-            path="/authenticated/about"
-            element={<ProtectedRoute element={About} />}
-          />
-          <Route
-            path="/authenticated/contact"
-            element={<ProtectedRoute element={Contact} />}
-          />
-          <Route path="*" element={<Navigate to="/auth" replace />} />
-        </Routes>
+      <form className="search-form" onSubmit={handleSubmit}>
+        <label htmlFor="zipcode" className="sr-only">
+          Enter zipcode
+        </label>
+        <input
+          id="zipcode"
+          type="text"
+          inputMode="numeric"
+          placeholder="Enter zipcode"
+          value={zipcode}
+          onChange={(e) => setZipcode(e.target.value)}
+        />
+        <button type="submit">Search</button>
+      </form>
+
+      <main className="content">
+        <section className="shelter-list" aria-label="Nearby shelters">
+          {loading && <p className="status-message">Loading shelters…</p>}
+          {error && <p className="status-message status-message--error">{error}</p>}
+          {!loading && !error && shelters.length === 0 && (
+            <p className="status-message">No shelters found yet.</p>
+          )}
+          {shelters.map((shelter) => (
+            <ShelterCard key={shelter.id} shelter={shelter} />
+          ))}
+        </section>
+
+        <section className="map-placeholder" aria-label="Map (coming soon)">
+          <span>Map view coming soon</span>
+        </section>
       </main>
-    </Router>
+    </div>
   );
 }
-
-export default App;

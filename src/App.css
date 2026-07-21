@@ -209,3 +209,219 @@ body {
   font-size: 0.95rem;
   min-height: 300px;
 }
+
+.offline-banner {
+  width: 100%;
+  padding: 0.85rem 1rem;
+  border-bottom: 1px solid #d6a700;
+  background-color: #fff3cd;
+  color: #5f4600;
+  text-align: center;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+.offline-update-panel {
+  max-width: 920px;
+  margin: 1.5rem auto;
+  padding: 1.25rem;
+  border: 1px solid #cbd3d8;
+  border-radius: 0.75rem;
+  background-color: #ffffff;
+  box-sizing: border-box;
+}
+
+.offline-update-heading {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.offline-update-heading h2 {
+  margin: 0 0 0.35rem;
+}
+
+.offline-update-heading p {
+  margin: 0;
+  color: #53616d;
+}
+
+.connection-chip {
+  display: inline-block;
+  flex-shrink: 0;
+  padding: 0.35rem 0.7rem;
+  border-radius: 999px;
+  font-weight: 700;
+}
+
+.connection-chip--online {
+  background-color: #e5f5ea;
+  color: #176b36;
+}
+
+.connection-chip--offline {
+  background-color: #fff3cd;
+  color: #6b4e00;
+}
+
+.offline-update-form {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+
+.offline-form-field {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.offline-form-field--wide {
+  grid-column: 1 / -1;
+}
+
+.offline-form-field label {
+  font-weight: 700;
+}
+
+.offline-form-field select,
+.offline-form-field textarea {
+  width: 100%;
+  padding: 0.75rem;
+  border: 1px solid #aeb9c1;
+  border-radius: 0.5rem;
+  background-color: #ffffff;
+  color: #172632;
+  font: inherit;
+  box-sizing: border-box;
+}
+
+.offline-form-field select:focus,
+.offline-form-field textarea:focus {
+  outline: 3px solid rgba(30, 108, 168, 0.3);
+  outline-offset: 1px;
+}
+
+.offline-form-actions {
+  grid-column: 1 / -1;
+}
+
+.offline-form-actions button {
+  padding: 0.75rem 1.1rem;
+  border: 0;
+  border-radius: 0.5rem;
+  background-color: #172632;
+  color: #ffffff;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.offline-form-actions button:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.offline-update-feedback {
+  margin: 1rem 0 0;
+  padding: 0.75rem 1rem;
+  border-left: 4px solid #2f9960;
+  background-color: #edf8f1;
+  color: #175b35;
+  font-weight: 600;
+}
+
+.pending-updates {
+  margin-top: 1.5rem;
+  border-top: 1px solid #d7dde1;
+  padding-top: 1rem;
+}
+
+.pending-updates h3 {
+  margin: 0 0 0.75rem;
+}
+
+.pending-empty {
+  margin: 0;
+  color: #53616d;
+}
+
+.pending-update-list {
+  display: grid;
+  gap: 0.75rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.pending-update-item {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  padding: 1rem;
+  border: 1px solid #cbd3d8;
+  border-radius: 0.5rem;
+  background-color: #f7f9fa;
+}
+
+.pending-update-content p {
+  margin: 0.3rem 0 0;
+}
+
+.pending-update-title {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.6rem;
+}
+
+.pending-badge {
+  display: inline-block;
+  padding: 0.25rem 0.55rem;
+  border-radius: 999px;
+  background-color: #fff3cd;
+  color: #6b4e00;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.pending-update-time {
+  color: #53616d;
+  font-size: 0.9rem;
+}
+
+.pending-delete-button {
+  align-self: flex-start;
+  padding: 0.45rem 0.7rem;
+  border: 1px solid #aeb9c1;
+  border-radius: 0.4rem;
+  background-color: #ffffff;
+  color: #922b21;
+  font: inherit;
+  cursor: pointer;
+}
+
+@media (max-width: 700px) {
+  .offline-update-panel {
+    margin: 1rem;
+  }
+
+  .offline-update-heading {
+    flex-direction: column;
+  }
+
+  .offline-update-form {
+    grid-template-columns: 1fr;
+  }
+
+  .offline-form-field--wide,
+  .offline-form-actions {
+    grid-column: 1;
+  }
+
+  .pending-update-item {
+    flex-direction: column;
+  }
+}

@@ -1,22 +1,10 @@
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
-import Parse from 'parse';
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App.jsx";
 
-// Parse initialization
-// see vite.config.js for parse aliasing
-const PARSE_APPLICATION_ID = "LUkqiHJ0bWoYIGiuEhy8ufNowQIBX193Arg1sFnp";
-const PARSE_JAVASCRIPT_KEY = "jsdicEGhltNWaMDBTd4xoOZUd84A6dK1eK5q4DOS";
-const PARSE_SERVER_URL = "https://parseapi.back4app.com/";
- 
-Parse.initialize(PARSE_APPLICATION_ID, PARSE_JAVASCRIPT_KEY);
-Parse.serverURL = PARSE_SERVER_URL;
-
-createRoot(document.getElementById('root')).render(
+createRoot(document.getElementById("root")).render(
   <StrictMode>
     <App />
-  </StrictMode>,
-)
-
-export default Parse;
+  </StrictMode>
+);

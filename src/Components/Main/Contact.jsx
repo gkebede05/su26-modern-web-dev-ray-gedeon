@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { fetchAllMessages } from '../models/Message';
+import { fetchAllMessages } from '../../Service/Message';
 
 function Contact() {
   const [messages, setMessages] = useState([]);
@@ -14,7 +14,7 @@ function Contact() {
       {messages.length === 0 && <p>No messages found.</p>}
       {messages.map(msg => (
         <div key={msg.id}>
-          <strong>{msg.name}</strong> — <em>{msg.email}</em>
+          <strong>{msg.name}</strong> - <em>{msg.email}</em>
           <p>{msg.message}</p>
         </div>
       ))}

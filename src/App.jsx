@@ -1,6 +1,11 @@
 import React, { useEffect, useState } from "react";
-import Parse from "./main.jsx";
+import Parse from "./Service/ParseClient.js";
 import ShelterCard from "./Components/ShelterCard";
+import OfflineBanner from "./Components/OfflineBanner.jsx";
+import {
+  getShelterCache,
+  saveShelterCache,
+} from "./Service/OfflineStorage.js";
 import "./App.css";
 
 export default function App() {
@@ -8,6 +13,8 @@ export default function App() {
   const [shelters, setShelters] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [cachedAt, setCachedAt] = useState(null);
+  const [usingCachedData, setUsingCachedData] = useState(false);
 
   useEffect(() => {
     async function fetchShelters() {
@@ -35,9 +42,26 @@ export default function App() {
         }));
 
         setShelters(mapped);
+
+        const savedCache = saveShelterCache(mapped);
+        setCachedAt(savedCache.cachedAt);
+        setUsingCachedData(false);
+        setError(null);
       } catch (err) {
-        setError("Couldn't load shelter data. Check your Back4App keys and connection.");
-        console.error(err);
+        console.error("Unable to load live shelter data.", err);
+
+        const cache = getShelterCache();
+
+        if (cache) {
+          setShelters(cache.shelters);
+          setCachedAt(cache.cachedAt);
+          setUsingCachedData(true);
+          setError(null);
+        } else {
+          setError(
+            "Shelter information could not be loaded, and no saved data is available."
+          );
+        }
       } finally {
         setLoading(false);
       }
@@ -48,7 +72,7 @@ export default function App() {
 
   function handleSubmit(e) {
     e.preventDefault();
-    // Zipcode lookup isn't wired up yet - this is a placeholder for now.
+    // Zipcode lookup isn't wired up yet.
   }
 
   return (
@@ -57,10 +81,13 @@ export default function App() {
         <h1>Shelter Finder</h1>
       </header>
 
+      <OfflineBanner />
+
       <form className="search-form" onSubmit={handleSubmit}>
         <label htmlFor="zipcode" className="sr-only">
           Enter zipcode
         </label>
+
         <input
           id="zipcode"
           type="text"
@@ -69,22 +96,42 @@ export default function App() {
           value={zipcode}
           onChange={(e) => setZipcode(e.target.value)}
         />
+
         <button type="submit">Search</button>
       </form>
 
       <main className="content">
         <section className="shelter-list" aria-label="Nearby shelters">
-          {loading && <p className="status-message">Loading shelters…</p>}
-          {error && <p className="status-message status-message--error">{error}</p>}
+          {usingCachedData && cachedAt && (
+            <p className="cache-message" role="status">
+              Showing saved shelter information from{" "}
+              {new Date(cachedAt).toLocaleString()}.
+            </p>
+          )}
+
+          {loading && (
+            <p className="status-message">Loading shelters…</p>
+          )}
+
+          {error && (
+            <p className="status-message status-message--error">
+              {error}
+            </p>
+          )}
+
           {!loading && !error && shelters.length === 0 && (
             <p className="status-message">No shelters found yet.</p>
           )}
+
           {shelters.map((shelter) => (
             <ShelterCard key={shelter.id} shelter={shelter} />
           ))}
         </section>
 
-        <section className="map-placeholder" aria-label="Map (coming soon)">
+        <section
+          className="map-placeholder"
+          aria-label="Map (coming soon)"
+        >
           <span>Map view coming soon</span>
         </section>
       </main>

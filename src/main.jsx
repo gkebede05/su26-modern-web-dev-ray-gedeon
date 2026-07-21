@@ -6,8 +6,8 @@ import Parse from 'parse';
 
 // Parse initialization
 // see vite.config.js for parse aliasing
-const PARSE_APPLICATION_ID = "Kl597XIwONvLruqWcxjxX7TMw4Td7voqpdgPGBHf";
-const PARSE_JAVASCRIPT_KEY = "trqaoWOAvLsOb6Cx9VgLsHHGYznM4lRNiCqEysia";
+const PARSE_APPLICATION_ID = "LUkqiHJ0bWoYIGiuEhy8ufNowQIBX193Arg1sFnp";
+const PARSE_JAVASCRIPT_KEY = "jsdicEGhltNWaMDBTd4xoOZUd84A6dK1eK5q4DOS";
 const PARSE_SERVER_URL = "https://parseapi.back4app.com/";
  
 Parse.initialize(PARSE_APPLICATION_ID, PARSE_JAVASCRIPT_KEY);

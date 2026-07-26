@@ -4,9 +4,19 @@ import React, {
   useState,
 } from "react";
 
+import {
+  Box,
+  Container,
+  Tab,
+  Tabs,
+} from "@mui/material";
+
 import ShelterCard from "./Components/ShelterCard.jsx";
 import OfflineBanner from "./Components/OfflineBanner.jsx";
 import OfflineUpdateForm from "./Components/OfflineUpdateForm.jsx";
+import ShelterDetails from "./Components/ShelterDetails.jsx";
+import Favourites from "./Components/Favourites.jsx";
+
 import useOnlineStatus from "./Hooks/useOnlineStatus.js";
 
 import {
@@ -27,12 +37,30 @@ import {
 
 import "./App.css";
 
+const FAVOURITES_STORAGE_KEY =
+  "shelterFinder.favouriteIds";
+
+/**
+ * Converts a server date into the format
+ * displayed in the shelter interface.
+ */
 function formatServerDate(dateValue) {
   if (!dateValue) {
     return null;
   }
 
-  return new Date(dateValue).toLocaleString(
+  const parsedDate =
+    new Date(dateValue);
+
+  if (
+    Number.isNaN(
+      parsedDate.getTime()
+    )
+  ) {
+    return null;
+  }
+
+  return parsedDate.toLocaleString(
     undefined,
     {
       month: "short",
@@ -43,16 +71,67 @@ function formatServerDate(dateValue) {
   );
 }
 
+/**
+ * Reads saved favourite shelter IDs
+ * from localStorage.
+ */
+function getStoredFavouriteIds() {
+  const storedFavouriteIds =
+    localStorage.getItem(
+      FAVOURITES_STORAGE_KEY
+    );
+
+  if (!storedFavouriteIds) {
+    return [];
+  }
+
+  try {
+    const parsedFavouriteIds =
+      JSON.parse(storedFavouriteIds);
+
+    return Array.isArray(
+      parsedFavouriteIds
+    )
+      ? parsedFavouriteIds
+      : [];
+  } catch (storageError) {
+    console.error(
+      "Unable to read favourite shelters.",
+      storageError
+    );
+
+    return [];
+  }
+}
+
 export default function App() {
-  const isOnline = useOnlineStatus();
+  const isOnline =
+    useOnlineStatus();
 
-  const [zipcode, setZipcode] = useState("");
-  const [shelters, setShelters] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [
+    zipcode,
+    setZipcode,
+  ] = useState("");
 
-  const [cachedAt, setCachedAt] =
-    useState(null);
+  const [
+    shelters,
+    setShelters,
+  ] = useState([]);
+
+  const [
+    loading,
+    setLoading,
+  ] = useState(true);
+
+  const [
+    error,
+    setError,
+  ] = useState(null);
+
+  const [
+    cachedAt,
+    setCachedAt,
+  ] = useState(null);
 
   const [
     usingCachedData,
@@ -62,45 +141,102 @@ export default function App() {
   const [
     pendingUpdates,
     setPendingUpdates,
-  ] = useState(() => getPendingUpdates());
+  ] = useState(
+    () => getPendingUpdates()
+  );
 
-  const [isSyncing, setIsSyncing] =
-    useState(false);
+  const [
+    isSyncing,
+    setIsSyncing,
+  ] = useState(false);
 
-  const [syncMessage, setSyncMessage] =
-    useState("");
+  const [
+    syncMessage,
+    setSyncMessage,
+  ] = useState("");
 
-  // Prevent React StrictMode from starting
-  // two synchronization operations at once.
-  const syncInProgressRef = useRef(false);
+  /*
+   * Material UI module state.
+   */
+  const [
+    activeModule,
+    setActiveModule,
+  ] = useState("shelters");
+
+  const [
+    selectedShelter,
+    setSelectedShelter,
+  ] = useState(null);
+
+  const [
+    detailsOpen,
+    setDetailsOpen,
+  ] = useState(false);
+
+  const [
+    favouriteIds,
+    setFavouriteIds,
+  ] = useState(
+    () => getStoredFavouriteIds()
+  );
+
+  /*
+   * Prevents React StrictMode from starting
+   * multiple synchronization operations.
+   */
+  const syncInProgressRef =
+    useRef(false);
 
   /**
-   * Loads shelter information when the application starts.
+   * Loads live shelter data when possible.
+   *
+   * If the live request fails, the application
+   * displays the most recently cached shelter data.
    */
   useEffect(() => {
+    let componentIsActive = true;
+
     async function loadShelters() {
+      setLoading(true);
+
       try {
         const liveShelters =
           await getShelters();
 
-        setShelters(liveShelters);
+        if (!componentIsActive) {
+          return;
+        }
 
-        saveShelterCache(liveShelters);
+        setShelters(
+          liveShelters
+        );
+
+        saveShelterCache(
+          liveShelters
+        );
 
         const savedCache =
           getShelterCache();
 
         setCachedAt(
-          savedCache?.cachedAt ?? null
+          savedCache?.cachedAt ??
+            null
         );
 
-        setUsingCachedData(false);
+        setUsingCachedData(
+          false
+        );
+
         setError(null);
       } catch (loadError) {
         console.error(
           "Unable to load live shelter data.",
           loadError
         );
+
+        if (!componentIsActive) {
+          return;
+        }
 
         const savedCache =
           getShelterCache();
@@ -114,7 +250,10 @@ export default function App() {
             savedCache.cachedAt
           );
 
-          setUsingCachedData(true);
+          setUsingCachedData(
+            true
+          );
+
           setError(null);
         } else {
           setShelters([]);
@@ -124,32 +263,49 @@ export default function App() {
           );
         }
       } finally {
-        setLoading(false);
+        if (componentIsActive) {
+          setLoading(false);
+        }
       }
     }
 
     loadShelters();
+
+    return () => {
+      componentIsActive = false;
+    };
   }, []);
 
   /**
-   * Synchronizes pending updates when the
-   * browser returns online.
+   * Synchronizes pending shelter updates when
+   * the browser returns online.
+   *
+   * A pending update is deleted from localStorage
+   * only after Cloud Code confirms success.
    */
   useEffect(() => {
     if (!isOnline) {
       return;
     }
 
-    if (pendingUpdates.length === 0) {
+    if (
+      pendingUpdates.length === 0
+    ) {
       return;
     }
 
-    if (syncInProgressRef.current) {
+    if (
+      syncInProgressRef.current
+    ) {
       return;
     }
+
+    let effectIsActive = true;
 
     async function synchronizeQueue() {
-      syncInProgressRef.current = true;
+      syncInProgressRef.current =
+        true;
+
       setIsSyncing(true);
 
       const queuedUpdates =
@@ -166,25 +322,51 @@ export default function App() {
       );
 
       try {
-        // Process the newest queued update first.
-        for (const update of queuedUpdates) {
+        /*
+         * Process older updates first so that
+         * changes for the same shelter stay in order.
+         *
+         * Pending updates are stored newest first.
+         */
+        const updatesInTimeOrder = [
+          ...queuedUpdates,
+        ].reverse();
+
+        for (
+          const update of
+          updatesInTimeOrder
+        ) {
           const result =
-            await syncShelterUpdate(update);
+            await syncShelterUpdate(
+              update
+            );
 
-          // Delete locally only after
-          // Cloud Code confirms success.
+          /*
+           * Remove locally only after the server
+           * confirms successful processing.
+           */
           const remainingQueue =
-            removePendingUpdate(update.id);
+            removePendingUpdate(
+              update.id
+            );
 
-          setPendingUpdates(
-            remainingQueue
-          );
+          if (effectIsActive) {
+            setPendingUpdates(
+              remainingQueue
+            );
+          }
 
           successfulUpdates += 1;
 
+          /*
+           * Update the visible shelter immediately
+           * when Cloud Code returns a Shelter object.
+           */
           if (result?.shelter) {
             setShelters(
-              (currentShelters) => {
+              (
+                currentShelters
+              ) => {
                 const updatedShelters =
                   currentShelters.map(
                     (shelter) => {
@@ -197,17 +379,23 @@ export default function App() {
 
                       return {
                         ...shelter,
+
                         status:
                           result.shelter
                             .status,
+
                         notes:
                           result.shelter
-                            .notes || "",
+                            .notes ?? "",
+
                         updatedAt:
                           formatServerDate(
                             result.shelter
                               .updatedAt
                           ),
+
+                        pendingSync:
+                          false,
                       };
                     }
                   );
@@ -228,28 +416,39 @@ export default function App() {
         const latestCache =
           getShelterCache();
 
-        setCachedAt(
-          latestCache?.cachedAt ?? null
-        );
-
-        setUsingCachedData(false);
-
-        if (finalQueue.length === 0) {
-          setSyncMessage(
-            `${successfulUpdates} pending update${
-              successfulUpdates === 1
-                ? ""
-                : "s"
-            } synchronized successfully.`
+        if (effectIsActive) {
+          setPendingUpdates(
+            finalQueue
           );
-        } else {
-          setSyncMessage(
-            `${successfulUpdates} update${
-              successfulUpdates === 1
-                ? ""
-                : "s"
-            } synchronized. ${finalQueue.length} still pending.`
+
+          setCachedAt(
+            latestCache?.cachedAt ??
+              null
           );
+
+          setUsingCachedData(
+            false
+          );
+
+          if (
+            finalQueue.length === 0
+          ) {
+            setSyncMessage(
+              `${successfulUpdates} pending update${
+                successfulUpdates === 1
+                  ? ""
+                  : "s"
+              } synchronized successfully.`
+            );
+          } else {
+            setSyncMessage(
+              `${successfulUpdates} update${
+                successfulUpdates === 1
+                  ? ""
+                  : "s"
+              } synchronized. ${finalQueue.length} still pending.`
+            );
+          }
         }
       } catch (syncError) {
         console.error(
@@ -260,47 +459,80 @@ export default function App() {
         const remainingQueue =
           getPendingUpdates();
 
-        setPendingUpdates(
-          remainingQueue
-        );
+        if (effectIsActive) {
+          setPendingUpdates(
+            remainingQueue
+          );
 
-        setSyncMessage(
-          `Synchronization paused. ${remainingQueue.length} update${
-            remainingQueue.length === 1
-              ? ""
-              : "s"
-          } remain pending.`
-        );
+          setSyncMessage(
+            `Synchronization paused. ${remainingQueue.length} update${
+              remainingQueue.length === 1
+                ? ""
+                : "s"
+            } remain pending.`
+          );
+        }
       } finally {
-        setIsSyncing(false);
-        syncInProgressRef.current = false;
+        if (effectIsActive) {
+          setIsSyncing(false);
+        }
+
+        syncInProgressRef.current =
+          false;
       }
     }
 
     synchronizeQueue();
-  }, [isOnline, pendingUpdates.length]);
 
-  function handleSearchSubmit(event) {
+    return () => {
+      effectIsActive = false;
+    };
+  }, [
+    isOnline,
+    pendingUpdates.length,
+  ]);
+
+  function handleSearchSubmit(
+    event
+  ) {
     event.preventDefault();
 
-    // ZIP-code search is not connected yet.
+    /*
+     * ZIP-code searching belongs to another
+     * feature and is not connected here.
+     */
   }
 
   function handleSavePendingUpdate(
     updateData
   ) {
-    const updatedQueue =
-      addPendingUpdate(updateData);
+    try {
+      const updatedQueue =
+        addPendingUpdate(
+          updateData
+        );
 
-    setPendingUpdates(updatedQueue);
-
-    if (isOnline) {
-      setSyncMessage(
-        "Update saved locally. Synchronization will begin now."
+      setPendingUpdates(
+        updatedQueue
       );
-    } else {
+
+      if (isOnline) {
+        setSyncMessage(
+          "Update saved locally. Synchronization will begin now."
+        );
+      } else {
+        setSyncMessage(
+          "Update saved locally and will synchronize when the connection returns."
+        );
+      }
+    } catch (saveError) {
+      console.error(
+        "Unable to save the shelter update.",
+        saveError
+      );
+
       setSyncMessage(
-        "Update saved locally and will synchronize when the connection returns."
+        saveError.message
       );
     }
   }
@@ -309,9 +541,13 @@ export default function App() {
     updateId
   ) {
     const updatedQueue =
-      removePendingUpdate(updateId);
+      removePendingUpdate(
+        updateId
+      );
 
-    setPendingUpdates(updatedQueue);
+    setPendingUpdates(
+      updatedQueue
+    );
 
     setSyncMessage(
       "The pending update was deleted."
@@ -319,43 +555,156 @@ export default function App() {
   }
 
   /**
-   * While an update is pending, show its newer
-   * status in the interface with pendingSync=true.
+   * Saves favourite IDs in state and localStorage.
+   */
+  function saveFavouriteIds(
+    nextFavouriteIds
+  ) {
+    setFavouriteIds(
+      nextFavouriteIds
+    );
+
+    localStorage.setItem(
+      FAVOURITES_STORAGE_KEY,
+      JSON.stringify(
+        nextFavouriteIds
+      )
+    );
+  }
+
+  function handleViewDetails(
+    shelter
+  ) {
+    setSelectedShelter(
+      shelter
+    );
+
+    setDetailsOpen(true);
+  }
+
+  function handleCloseDetails() {
+    setDetailsOpen(false);
+  }
+
+  function handleToggleFavourite(
+    shelter
+  ) {
+    if (!shelter?.id) {
+      return;
+    }
+
+    const alreadyFavourite =
+      favouriteIds.includes(
+        shelter.id
+      );
+
+    const nextFavouriteIds =
+      alreadyFavourite
+        ? favouriteIds.filter(
+            (shelterId) =>
+              shelterId !==
+              shelter.id
+          )
+        : [
+            ...favouriteIds,
+            shelter.id,
+          ];
+
+    saveFavouriteIds(
+      nextFavouriteIds
+    );
+  }
+
+  function handleRemoveFavourite(
+    shelterId
+  ) {
+    const nextFavouriteIds =
+      favouriteIds.filter(
+        (favouriteId) =>
+          favouriteId !==
+          shelterId
+      );
+
+    saveFavouriteIds(
+      nextFavouriteIds
+    );
+  }
+
+  /**
+   * Displays the newest local pending version
+   * while synchronization is still waiting.
    */
   const displayedShelters =
-    shelters.map((shelter) => {
-      const newestPendingUpdate =
-        pendingUpdates.find(
-          (update) =>
-            update.shelterId ===
-            shelter.id
-        );
+    shelters.map(
+      (shelter) => {
+        const newestPendingUpdate =
+          pendingUpdates.find(
+            (update) =>
+              update.shelterId ===
+              shelter.id
+          );
 
-      if (!newestPendingUpdate) {
-        return shelter;
+        if (
+          !newestPendingUpdate
+        ) {
+          return {
+            ...shelter,
+            pendingSync: false,
+          };
+        }
+
+        return {
+          ...shelter,
+
+          status:
+            newestPendingUpdate
+              .status,
+
+          notes:
+            newestPendingUpdate
+              .note,
+
+          pendingSync: true,
+        };
       }
+    );
 
-      return {
-        ...shelter,
-        status:
-          newestPendingUpdate.status,
-        notes:
-          newestPendingUpdate.note,
-        pendingSync: true,
-      };
-    });
+  const favouriteShelters =
+    displayedShelters.filter(
+      (shelter) =>
+        favouriteIds.includes(
+          shelter.id
+        )
+    );
+
+  /*
+   * Keep the open details dialog updated when
+   * shelter data changes after synchronization.
+   */
+  const currentSelectedShelter =
+    selectedShelter
+      ? displayedShelters.find(
+          (shelter) =>
+            shelter.id ===
+            selectedShelter.id
+        ) ?? selectedShelter
+      : null;
 
   return (
     <div className="page">
       <header className="banner">
-        <h1>Shelter Finder</h1>
+        <h1>
+          Shelter Finder
+        </h1>
       </header>
 
       <OfflineBanner />
 
       <form
         className="search-form"
-        onSubmit={handleSearchSubmit}
+        onSubmit={
+          handleSearchSubmit
+        }
       >
         <label
           htmlFor="zipcode"
@@ -409,66 +758,217 @@ export default function App() {
         }
       />
 
-      <main className="content">
-        <section
-          className="shelter-list"
-          aria-label="Nearby shelters"
+      <Container
+        component="main"
+        maxWidth="xl"
+        sx={{
+          py: {
+            xs: 3,
+            sm: 4,
+          },
+        }}
+      >
+        <Tabs
+          value={activeModule}
+          onChange={(
+            event,
+            nextModule
+          ) => {
+            setActiveModule(
+              nextModule
+            );
+          }}
+          aria-label="Shelter Finder modules"
+          variant="fullWidth"
+          sx={{
+            mb: 3,
+            borderBottom: 1,
+            borderColor:
+              "divider",
+          }}
         >
-          {usingCachedData &&
-            cachedAt && (
-              <p
-                className="cache-message"
-                role="status"
-              >
-                Showing saved shelter
-                information from{" "}
-                {new Date(
-                  cachedAt
-                ).toLocaleString()}
-                .
-              </p>
-            )}
+          <Tab
+            value="shelters"
+            label="Shelters"
+            id="shelters-tab"
+            aria-controls="shelters-panel"
+          />
 
-          {loading && (
-            <p className="status-message">
-              Loading shelters…
-            </p>
-          )}
+          <Tab
+            value="favourites"
+            label={`Favourites (${favouriteShelters.length})`}
+            id="favourites-tab"
+            aria-controls="favourites-panel"
+          />
+        </Tabs>
 
-          {error && (
-            <p className="status-message status-message--error">
-              {error}
-            </p>
-          )}
+        {activeModule ===
+          "shelters" && (
+          <Box
+            id="shelters-panel"
+            role="tabpanel"
+            aria-labelledby="shelters-tab"
+            sx={{
+              display: "grid",
 
-          {!loading &&
-            !error &&
-            displayedShelters.length ===
-              0 && (
-              <p className="status-message">
-                No shelters found yet.
-              </p>
-            )}
+              gridTemplateColumns: {
+                xs: "1fr",
 
-          {displayedShelters.map(
-            (shelter) => (
-              <ShelterCard
-                key={shelter.id}
-                shelter={shelter}
-              />
-            )
-          )}
-        </section>
+                lg: "minmax(0, 1fr) minmax(320px, 0.75fr)",
+              },
 
-        <section
-          className="map-placeholder"
-          aria-label="Map coming soon"
-        >
-          <span>
-            Map view coming soon
-          </span>
-        </section>
-      </main>
+              gap: {
+                xs: 3,
+                lg: 4,
+              },
+            }}
+          >
+            <Box
+              component="section"
+              aria-label="Nearby shelters"
+              sx={{
+                display: "grid",
+                gap: 2,
+                alignContent:
+                  "start",
+                minWidth: 0,
+              }}
+            >
+              {usingCachedData &&
+                cachedAt && (
+                  <p
+                    className="cache-message"
+                    role="status"
+                  >
+                    Showing saved
+                    shelter information
+                    from{" "}
+                    {new Date(
+                      cachedAt
+                    ).toLocaleString()}
+                    .
+                  </p>
+                )}
+
+              {loading && (
+                <p className="status-message">
+                  Loading shelters…
+                </p>
+              )}
+
+              {error && (
+                <p className="status-message status-message--error">
+                  {error}
+                </p>
+              )}
+
+              {!loading &&
+                !error &&
+                displayedShelters.length ===
+                  0 && (
+                  <p className="status-message">
+                    No shelters
+                    found yet.
+                  </p>
+                )}
+
+              {displayedShelters.map(
+                (shelter) => (
+                  <ShelterCard
+                    key={
+                      shelter.id
+                    }
+                    shelter={
+                      shelter
+                    }
+                    isFavourite={favouriteIds.includes(
+                      shelter.id
+                    )}
+                    onViewDetails={
+                      handleViewDetails
+                    }
+                    onToggleFavourite={
+                      handleToggleFavourite
+                    }
+                  />
+                )
+              )}
+            </Box>
+
+            <Box
+              component="section"
+              aria-label="Map coming soon"
+              sx={{
+                minHeight: {
+                  xs: 240,
+                  lg: 500,
+                },
+
+                border: 1,
+                borderColor:
+                  "divider",
+                borderRadius: 3,
+
+                display: "grid",
+                placeItems:
+                  "center",
+
+                bgcolor:
+                  "grey.50",
+                color:
+                  "text.secondary",
+
+                px: 2,
+                textAlign:
+                  "center",
+              }}
+            >
+              Map view coming soon
+            </Box>
+          </Box>
+        )}
+
+        {activeModule ===
+          "favourites" && (
+          <Box
+            id="favourites-panel"
+            role="tabpanel"
+            aria-labelledby="favourites-tab"
+          >
+            <Favourites
+              favourites={
+                favouriteShelters
+              }
+              onViewDetails={
+                handleViewDetails
+              }
+              onRemoveFavourite={
+                handleRemoveFavourite
+              }
+            />
+          </Box>
+        )}
+
+        <ShelterDetails
+          shelter={
+            currentSelectedShelter
+          }
+          open={detailsOpen}
+          onClose={
+            handleCloseDetails
+          }
+          isFavourite={
+            currentSelectedShelter
+              ? favouriteIds.includes(
+                  currentSelectedShelter.id
+                )
+              : false
+          }
+          onToggleFavourite={
+            handleToggleFavourite
+          }
+        />
+      </Container>
     </div>
   );
 }

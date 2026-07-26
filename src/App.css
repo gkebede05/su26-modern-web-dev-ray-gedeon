@@ -425,3 +425,27 @@ body {
     flex-direction: column;
   }
 }
+
+.sync-message {
+  max-width: 920px;
+  margin: 1rem auto;
+  padding: 0.8rem 1rem;
+  border: 1px solid #91a4b3;
+  border-radius: 0.5rem;
+  background-color: #eef3f7;
+  color: #263746;
+  font-weight: 600;
+  box-sizing: border-box;
+}
+
+.sync-message--active {
+  border-color: #3478a8;
+  background-color: #e5f2fb;
+  color: #174d72;
+}
+
+@media (max-width: 700px) {
+  .sync-message {
+    margin: 1rem;
+  }
+}
